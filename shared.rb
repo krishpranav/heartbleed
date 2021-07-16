@@ -35,3 +35,15 @@ EOS
 SERVER_HELLO_DONE = "\x0e\x00\x00\x00"
 
 PAYLOAD =  "\x18\x03\x01\x00\x03\x01\x40\x00"
+
+TLSRecord = Struct.new(:type, :version, :value)
+
+def read_record(sock)
+    Timeout.timeout(3) do
+        type = sock.read(1)
+        version = sock.read(2)
+        length = sock.read(2).unpack('n')[0]
+        value = length > 0 ? sock.read(length) : nil
+        TLSRecord.new(type, version, value)
+    end
+end
