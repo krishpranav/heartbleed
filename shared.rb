@@ -1,12 +1,11 @@
-#!/usr/bin/env ruby
-
+# encoding: BINARY
 require 'socket'
 require 'timeout'
 require 'openssl'
 
 module ContentType
   ALERT = "\x15"
-  HEARTBLEED = "\x18"
+  HEARTBLEAD = "\x18"
 end
 
 def decode_hex(s)
@@ -39,11 +38,27 @@ PAYLOAD =  "\x18\x03\x01\x00\x03\x01\x40\x00"
 TLSRecord = Struct.new(:type, :version, :value)
 
 def read_record(sock)
-    Timeout.timeout(3) do
-        type = sock.read(1)
-        version = sock.read(2)
-        length = sock.read(2).unpack('n')[0]
-        value = length > 0 ? sock.read(length) : nil
-        TLSRecord.new(type, version, value)
-    end
+  Timeout.timeout(3) do
+    type = sock.read(1)
+    version = sock.read(2)
+    length = sock.read(2).unpack('n')[0]
+    value = length > 0 ? sock.read(length) : nil
+    TLSRecord.new(type, version, value)
+  end
+end
+
+def evaluate_heartbleed(sock)
+    heartbleed = read_record(sock)
+
+  case heartbleed.type
+  when ContentType::HEARTBLEAD
+    raise "Vulnerable!" if heartbleed.value
+    puts "Received a heartbleed response, but it contained no data. This is OK."
+  when ContentType::ALERT
+    puts "Received an alert instead of a heartbleed response. This is OK."
+  else
+    raise "Received an unexpected ContentType: #{heartbleed.type.inspect}"
+  end   
+rescue Timeout::Error
+  puts "Received a timeout when waiting for heartbleed response. This is OK."
 end
